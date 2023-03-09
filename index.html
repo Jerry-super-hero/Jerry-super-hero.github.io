@@ -172,7 +172,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2023-03-09 21:12:25 / 修改时间：21:31:39" itemprop="dateCreated datePublished" datetime="2023-03-09T21:12:25+08:00">2023-03-09</time>
+              <time title="创建时间：2023-03-09 21:12:25 / 修改时间：21:59:22" itemprop="dateCreated datePublished" datetime="2023-03-09T21:12:25+08:00">2023-03-09</time>
             </span>
 
           
@@ -225,7 +225,157 @@ SM2是国家密码管理局于2010年12月17日发布的椭圆曲线公钥密码
 <td>一般</td>
 </tr>
 </tbody></table>
-<p>SM2性能更优更安全：密码复杂度高、处理速度快、机器性能消耗更小。</p>
+<p>SM2性能更优更安全：密码复杂度高、处理速度快、机器性能消耗更小。<br><br/><br/><br/><br/></p>
+<h2 id="第二章，SM2加密算法流程"><a href="#第二章，SM2加密算法流程" class="headerlink" title="第二章，SM2加密算法流程"></a>第二章，SM2加密算法流程</h2><br/>
+
+<p>参考文件<a target="_blank" rel="noopener" href="http://www.sca.gov.cn/sca/xwdt/2010-12/17/1002386/files/b791a9f908bb4803875ab6aeeb7b4e03.pdf">《SM2椭圆曲线公钥密码算法》</a></p>
+<h3 id="输入数据"><a href="#输入数据" class="headerlink" title="输入数据"></a>输入数据</h3><p>输入数据包括：<br>1.	椭圆曲线系统参数（a,b,p,x,y,n）</p>
+<pre><code>1. $y^2 = x^3 +ax+b$
+
+2. 域的规模q = p，p是大于3的素数
+
+3. 基点G = (xG,yG) ∈ E(Fp)
+
+4. 基点G的阶n(要求：n &gt; 2 191且n &gt; 4p 1/2 )；
+</code></pre>
+<ol start="2">
+<li>   长度为klen比特的消息M</li>
+<li>   公钥Pb</li>
+</ol>
+<h3 id="加密过程"><a href="#加密过程" class="headerlink" title="加密过程"></a>加密过程</h3><ol>
+<li><p>   用随机数发生器产生随机数k∈[1,n-1]；</p>
+</li>
+<li><p>   计算椭圆曲线点C1&#x3D;[k]G&#x3D;(x1,y1)</p>
+<pre><code>  //[k]P：椭圆曲线上点P的k倍点，即，[k]P= P + P + · · · + P | &#123;z &#125;  k个 ，k是正整数。
+  a)	CalculateC1(pointC1, randomK, G);
+  b)	void CalculateC1(EccPoint* result, uint256_t k, EccPoint* G)
+      &#123;
+          CurvePointMul(result, G, k);
+      &#125;
+  c)	void CurvePointMul(EccPoint* res, EccPoint* p1, uint64_t* times)
+      &#123;
+          EccPoint tmpPoint[1],// = malloc(sizeof(EccPoint)), 
+          tmpPoint1[1];// = malloc(sizeof(EccPoint));
+             uint64_t tmpTimes[8];// = malloc(sizeof(EccPoint));
+
+          Uint256Cpy(tmpPoint-&gt;x, p1-&gt;x);//256位的内容复制
+          Uint256Cpy(tmpPoint-&gt;y, p1-&gt;y);
+          Uint256Cpy(tmpTimes, times);
+
+          for (int i = 0; i &lt; 4; i++)//结果初始化0
+          &#123;
+              res-&gt;x[i] = 0;
+              res-&gt;y[i] = 0;
+          &#125;
+          while (!IsZeroUint256(tmpTimes))//进行k倍点乘
+          &#123;
+              if (tmpTimes[0] &amp; 0x1)//位与运算
+          //1 &amp; 1 == 1，1 &amp; 0 == 0 &amp; 1 == 0 &amp; 0 == 0
+          //判断二进制最后一位是否为1
+          &#123;
+              CurvePointAdd(res, res, tmpPoint);	//res = r   +tmpPoint
+          &#125;
+          Uint256BitShift(tmpTimes, -1);	//times &gt;&gt;= 1
+                                  //256位数(&gt;0)左移或者(&lt;0)右移
+          Uint256Cpy(tmpPoint1-&gt;x, tmpPoint-&gt;x);
+          Uint256Cpy(tmpPoint1-&gt;y, tmpPoint-&gt;y);
+          CurvePointAdd(tmpPoint, tmpPoint, tmpPoint1);   tmpPoint *=2
+          &#125;
+          //free(tmpPoint);
+          //free(tmpPoint1);
+          //free(tmpTimes);
+      &#125;
+</code></pre>
+</li>
+<li><p>   将C1的数据类型转换为比特串 比特串&#x3D;uint8_t</p>
+<pre><code>  void Uint256ToString(uint8_t* res, uint256_t num)
+  &#123;
+      int  pos = 0;
+
+      for (int i = 3; i &gt;= 0; i--)
+      &#123;
+          for (int j = 7; j &gt;= 0; j--)
+          &#123;
+              res[pos++] = (num[i] &amp; (0xffULL &lt;&lt; 8))) &gt;&gt; (j * 8);
+          &#125;
+      &#125;
+  &#125;
+</code></pre>
+</li>
+<li><p>   计算椭圆曲线点S&#x3D;[h]PB，若S是无穷远点，则报错并退出；<br>这一部分在main函数验证</p>
+<pre><code>  if (!IsValidPoint(pubKey, Ec))
+  &#123;
+      goto GenerateKey;
+  &#125;
+</code></pre>
+</li>
+<li><p>   计算椭圆曲线点[k]PB&#x3D;(x2,y2)，按本文本第1部分4.2.5和4.2.4给出的细节，将坐标x2、y2 的 数据类型转换为比特串；<br>这里同第2步</p>
+</li>
+<li><p>   计算t&#x3D;KDF(x2 ∥ y2, klen)，若t为全0比特串，则返回A1；</p>
+<p>  密钥派生函数的作用是从一个共享的秘密比特串中派生出密钥数据。在密钥协商过程中，密钥派 生函数作用在密钥交换所获共享的秘密比特串上，从中产生所需的会话密钥或进一步加密所需的密钥数据。 </p>
+<p>  密钥派生函数需要调用密码杂凑函数。 </p>
+<p>  设密码杂凑函数为Hv( )，其输出是长度恰为v比特的杂凑值。 </p>
+<p>  密钥派生函数KDF(Z, klen)： </p>
+<p>  输入：比特串Z，整数klen(表示要获得的密钥数据的比特长度，要求该值小于(232-1)v)。 </p>
+<p>  输出：长度为klen的密钥数据比特串K。 </p>
+<p>  a)初始化一个32比特构成的计数器ct&#x3D;0x00000001； </p>
+<p>  b)对i从1到⌈klen&#x2F;v⌉执行： </p>
+<pre><code>  b.1)计算Hai=Hv(Z ∥ ct)； 
+  b.2) ct++； 
+</code></pre>
+<p>  c)若klen&#x2F;v是整数，令Ha!⌈klen&#x2F;v⌉ &#x3D; Ha⌈klen&#x2F;v⌉，否则令Ha!⌈klen&#x2F;v⌉为Ha⌈klen&#x2F;v⌉最   左边的(klen − (v × ⌊klen&#x2F;v⌋))比特； </p>
+<p>  d)令K &#x3D; Ha1||Ha2|| · · · ||Ha⌈klen&#x2F;v⌉−1||Ha!⌈klen&#x2F;v⌉。</p>
+<pre><code>  memcpy(x2 + 32, y2, 32);//x2 = x2 || y2
+  KDF(t, x2, 64 * 8, messageSizeInBit);	//t = KDF()
+
+
+  void KDF(uint8_t* result, uint8_t* Z, int dataLenInBit, int keyLenInBit)//虽然此处可以修改，因为即使传进kdf的参数有改变，每次memset函数都重置了里面的值，但是没有必要，因为这样申请的空间太多了
+  &#123;
+      uint8_t* tmpRes = (uint8_t*)malloc(keyLenInBit / 8), 
+           *tmpData = (uint8_t*)malloc(dataLenInBit / 8 + 4);
+      keyLenInBit /= 8;
+      dataLenInBit /= 8;//转为byte数
+      memset(tmpRes, 0, keyLenInBit);
+      memset(tmpData, 0, dataLenInBit + 4);
+  
+      uint32_t ct = 1;  //a.初始化32bit计数器
+      uint8_t hash[32] = &#123; 0 &#125;, ct2Byte[4] = &#123; 0 &#125;; //ct2By与计数器的值一样,只是为了方便计算
+      int realHashLen = 32; //摘要长度
+      int maxLoopNum = (keyLenInBit + 31) / 32; //times [klenInBit/v](向上取整)
+      int i = 0;
+  
+      memcpy(tmpData, Z, dataLenInBit);
+      for (i = 0; i &lt; maxLoopNum; i++)
+      &#123;
+          ct2Byte[0] = (ct &gt;&gt; 24) &amp; 0xFF;
+          ct2Byte[1] = (ct &gt;&gt; 16) &amp; 0xFF;
+          ct2Byte[2] = (ct &gt;&gt; 8) &amp; 0xFF;
+          ct2Byte[3] = (ct) &amp; 0xFF;
+          memcpy(tmpData + dataLenInBit, ct2Byte, 4);	// Z |ct
+          SM3(tmpData, dataLenInBit + 4, hash);	//b. Hai = Hv(Z || ct)
+  
+          if (i == maxLoopNum - 1) //c. 根据keylen/32是除，截取摘要的值
+          &#123;			
+              if (keyLenInBit % 32 != 0)
+             &#123;
+                  realHashLen = keyLenInBit % 32;
+              &#125;
+          &#125;
+          memcpy(tmpRes + 32 * i, hash, realHashLen);	//d.次把结果连接上
+          //i++;
+          ct++;
+      &#125;
+  
+      if (result != NULL)
+      &#123;
+          memcpy(result, tmpRes, keyLenInBit);
+      &#125;
+      free(tmpRes);
+      free(tmpData);
+</code></pre>
+</li>
+</ol>
+<p>}</p>
 
       
     </div>
