@@ -170,10 +170,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2023-03-09 21:12:25 / 修改时间：21:59:22" itemprop="dateCreated datePublished" datetime="2023-03-09T21:12:25+08:00">2023-03-09</time>
+              <time title="创建时间：2023-03-09 21:12:25" itemprop="dateCreated datePublished" datetime="2023-03-09T21:12:25+08:00">2023-03-09</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-03-10 11:33:25" itemprop="dateModified" datetime="2023-03-10T11:33:25+08:00">2023-03-10</time>
+              </span>
 
           
 
@@ -229,6 +235,7 @@ SM2是国家密码管理局于2010年12月17日发布的椭圆曲线公钥密码
 <h2 id="第二章，SM2加密算法流程"><a href="#第二章，SM2加密算法流程" class="headerlink" title="第二章，SM2加密算法流程"></a>第二章，SM2加密算法流程</h2><br/>
 
 <p>参考文件<a target="_blank" rel="noopener" href="http://www.sca.gov.cn/sca/xwdt/2010-12/17/1002386/files/b791a9f908bb4803875ab6aeeb7b4e03.pdf">《SM2椭圆曲线公钥密码算法》</a></p>
+<p>以下代码来源<a target="_blank" rel="noopener" href="https://blog.csdn.net/XiaoMing">付泽铭:国密SM2&#x2F;SM3算法在单片机平台上的实现</a></p>
 <h3 id="输入数据"><a href="#输入数据" class="headerlink" title="输入数据"></a>输入数据</h3><p>输入数据包括：<br>1.	椭圆曲线系统参数（a,b,p,x,y,n）</p>
 <pre><code>1. $y^2 = x^3 +ax+b$
 
@@ -246,69 +253,11 @@ SM2是国家密码管理局于2010年12月17日发布的椭圆曲线公钥密码
 <li><p>   用随机数发生器产生随机数k∈[1,n-1]；</p>
 </li>
 <li><p>   计算椭圆曲线点C1&#x3D;[k]G&#x3D;(x1,y1)</p>
-<pre><code>  //[k]P：椭圆曲线上点P的k倍点，即，[k]P= P + P + · · · + P | &#123;z &#125;  k个 ，k是正整数。
-  a)	CalculateC1(pointC1, randomK, G);
-  b)	void CalculateC1(EccPoint* result, uint256_t k, EccPoint* G)
-      &#123;
-          CurvePointMul(result, G, k);
-      &#125;
-  c)	void CurvePointMul(EccPoint* res, EccPoint* p1, uint64_t* times)
-      &#123;
-          EccPoint tmpPoint[1],// = malloc(sizeof(EccPoint)), 
-          tmpPoint1[1];// = malloc(sizeof(EccPoint));
-             uint64_t tmpTimes[8];// = malloc(sizeof(EccPoint));
-
-          Uint256Cpy(tmpPoint-&gt;x, p1-&gt;x);//256位的内容复制
-          Uint256Cpy(tmpPoint-&gt;y, p1-&gt;y);
-          Uint256Cpy(tmpTimes, times);
-
-          for (int i = 0; i &lt; 4; i++)//结果初始化0
-          &#123;
-              res-&gt;x[i] = 0;
-              res-&gt;y[i] = 0;
-          &#125;
-          while (!IsZeroUint256(tmpTimes))//进行k倍点乘
-          &#123;
-              if (tmpTimes[0] &amp; 0x1)//位与运算
-          //1 &amp; 1 == 1，1 &amp; 0 == 0 &amp; 1 == 0 &amp; 0 == 0
-          //判断二进制最后一位是否为1
-          &#123;
-              CurvePointAdd(res, res, tmpPoint);	//res = r   +tmpPoint
-          &#125;
-          Uint256BitShift(tmpTimes, -1);	//times &gt;&gt;= 1
-                                  //256位数(&gt;0)左移或者(&lt;0)右移
-          Uint256Cpy(tmpPoint1-&gt;x, tmpPoint-&gt;x);
-          Uint256Cpy(tmpPoint1-&gt;y, tmpPoint-&gt;y);
-          CurvePointAdd(tmpPoint, tmpPoint, tmpPoint1);   tmpPoint *=2
-          &#125;
-          //free(tmpPoint);
-          //free(tmpPoint1);
-          //free(tmpTimes);
-      &#125;
-</code></pre>
-</li>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//[k]P：椭圆曲线上点P的k倍点，即，[k]P= P + P + · · · + P | &#123;z &#125; 个 ，k是正整数。</span></span><br><span class="line">CalculateC1(pointC1, randomK, G)</span><br><span class="line"><span class="type">void</span> <span class="title function_">CalculateC1</span><span class="params">(EccPoint* result, <span class="type">uint256_t</span> k, EccPoint* G)</span></span><br><span class="line">&#123;</span><br><span class="line">    CurvePointMul(result, G, k);</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">CurvePointMul</span><span class="params">(EccPoint* res, EccPoint* p1, <span class="type">uint64_t</span>* times)</span></span><br><span class="line">&#123;</span><br><span class="line">	EccPoint tmpPoint[<span class="number">1</span>],<span class="comment">// = malloc(sizeof(EccPoint)), </span></span><br><span class="line">	tmpPoint1[<span class="number">1</span>];<span class="comment">// = malloc(sizeof(EccPoint));</span></span><br><span class="line">	<span class="type">uint64_t</span> tmpTimes[<span class="number">8</span>];<span class="comment">// = malloc(sizeof(EccPoint))</span></span><br><span class="line">	Uint256Cpy(tmpPoint-&gt;x, p1-&gt;x);<span class="comment">//256位的内容复制</span></span><br><span class="line">	Uint256Cpy(tmpPoint-&gt;y, p1-&gt;y);</span><br><span class="line">	Uint256Cpy(tmpTimes, times)</span><br><span class="line">	<span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">4</span>; i++)<span class="comment">//结果初始化0</span></span><br><span class="line">	&#123;</span><br><span class="line">		res-&gt;x[i] = <span class="number">0</span>;</span><br><span class="line">		res-&gt;y[i] = <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">while</span> (!IsZeroUint256(tmpTimes))<span class="comment">//进行k倍点乘</span></span><br><span class="line">	&#123;</span><br><span class="line">		<span class="keyword">if</span> (tmpTimes[<span class="number">0</span>] &amp; <span class="number">0x1</span>)<span class="comment">//位与运算</span></span><br><span class="line">    <span class="comment">//1 &amp; 1 == 1，1 &amp; 0 == 0 &amp; 1 == 0 &amp; 0 == 0</span></span><br><span class="line">    <span class="comment">//判断二进制最后一位是否为1</span></span><br><span class="line">	&#123;</span><br><span class="line">    	CurvePointAdd(res, res, tmpPoint);	<span class="comment">//res = r  +tmpPoint</span></span><br><span class="line">	&#125;</span><br><span class="line">	Uint256BitShift(tmpTimes, <span class="number">-1</span>);	<span class="comment">//times &gt;&gt;= 1</span></span><br><span class="line">							<span class="comment">//256位数(&gt;0)左移或者(&lt;0)右移</span></span><br><span class="line">	Uint256Cpy(tmpPoint1-&gt;x, tmpPoint-&gt;x);</span><br><span class="line">	Uint256Cpy(tmpPoint1-&gt;y, tmpPoint-&gt;y);</span><br><span class="line">	CurvePointAdd(tmpPoint, tmpPoint, tmpPoint1);   tmpPoint *=<span class="number">2</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//free(tmpPoint);</span></span><br><span class="line">	<span class="comment">//free(tmpPoint1);</span></span><br><span class="line">	<span class="comment">//free(tmpTimes);</span></span><br><span class="line">&#125;</span><br><span class="line">		</span><br></pre></td></tr></table></figure></li>
 <li><p>   将C1的数据类型转换为比特串 比特串&#x3D;uint8_t</p>
-<pre><code>  void Uint256ToString(uint8_t* res, uint256_t num)
-  &#123;
-      int  pos = 0;
-
-      for (int i = 3; i &gt;= 0; i--)
-      &#123;
-          for (int j = 7; j &gt;= 0; j--)
-          &#123;
-              res[pos++] = (num[i] &amp; (0xffULL &lt;&lt; 8))) &gt;&gt; (j * 8);
-          &#125;
-      &#125;
-  &#125;
-</code></pre>
-</li>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">Uint256ToString</span><span class="params">(<span class="type">uint8_t</span>* res, <span class="type">uint256_t</span> num)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">int</span>  pos = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">3</span>; i &gt;= <span class="number">0</span>; i--)</span><br><span class="line">    &#123;</span><br><span class="line">    	<span class="keyword">for</span> (<span class="type">int</span> j = <span class="number">7</span>; j &gt;= <span class="number">0</span>; j--)</span><br><span class="line">    	&#123;</span><br><span class="line">    		res[pos++] = (num[i] &amp; (<span class="number">0xff</span>ULL &lt;&lt; <span class="number">8</span>)) &gt;&gt; (j * <span class="number">8</span>);</span><br><span class="line">    	&#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
 <li><p>   计算椭圆曲线点S&#x3D;[h]PB，若S是无穷远点，则报错并退出；<br>这一部分在main函数验证</p>
-<pre><code>  if (!IsValidPoint(pubKey, Ec))
-  &#123;
-      goto GenerateKey;
-  &#125;
-</code></pre>
-</li>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!IsValidPoint(pubKey, Ec))</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">goto</span> GenerateKey;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
 <li><p>   计算椭圆曲线点[k]PB&#x3D;(x2,y2)，按本文本第1部分4.2.5和4.2.4给出的细节，将坐标x2、y2 的 数据类型转换为比特串；<br>这里同第2步</p>
 </li>
 <li><p>   计算t&#x3D;KDF(x2 ∥ y2, klen)，若t为全0比特串，则返回A1；</p>
@@ -325,57 +274,20 @@ SM2是国家密码管理局于2010年12月17日发布的椭圆曲线公钥密码
 </code></pre>
 <p>  c)若klen&#x2F;v是整数，令Ha!⌈klen&#x2F;v⌉ &#x3D; Ha⌈klen&#x2F;v⌉，否则令Ha!⌈klen&#x2F;v⌉为Ha⌈klen&#x2F;v⌉最   左边的(klen − (v × ⌊klen&#x2F;v⌋))比特； </p>
 <p>  d)令K &#x3D; Ha1||Ha2|| · · · ||Ha⌈klen&#x2F;v⌉−1||Ha!⌈klen&#x2F;v⌉。</p>
-<pre><code>  memcpy(x2 + 32, y2, 32);//x2 = x2 || y2
-  KDF(t, x2, 64 * 8, messageSizeInBit);	//t = KDF()
-
-
-  void KDF(uint8_t* result, uint8_t* Z, int dataLenInBit, int keyLenInBit)//虽然此处可以修改，因为即使传进kdf的参数有改变，每次memset函数都重置了里面的值，但是没有必要，因为这样申请的空间太多了
-  &#123;
-      uint8_t* tmpRes = (uint8_t*)malloc(keyLenInBit / 8), 
-           *tmpData = (uint8_t*)malloc(dataLenInBit / 8 + 4);
-      keyLenInBit /= 8;
-      dataLenInBit /= 8;//转为byte数
-      memset(tmpRes, 0, keyLenInBit);
-      memset(tmpData, 0, dataLenInBit + 4);
-  
-      uint32_t ct = 1;  //a.初始化32bit计数器
-      uint8_t hash[32] = &#123; 0 &#125;, ct2Byte[4] = &#123; 0 &#125;; //ct2By与计数器的值一样,只是为了方便计算
-      int realHashLen = 32; //摘要长度
-      int maxLoopNum = (keyLenInBit + 31) / 32; //times [klenInBit/v](向上取整)
-      int i = 0;
-  
-      memcpy(tmpData, Z, dataLenInBit);
-      for (i = 0; i &lt; maxLoopNum; i++)
-      &#123;
-          ct2Byte[0] = (ct &gt;&gt; 24) &amp; 0xFF;
-          ct2Byte[1] = (ct &gt;&gt; 16) &amp; 0xFF;
-          ct2Byte[2] = (ct &gt;&gt; 8) &amp; 0xFF;
-          ct2Byte[3] = (ct) &amp; 0xFF;
-          memcpy(tmpData + dataLenInBit, ct2Byte, 4);	// Z |ct
-          SM3(tmpData, dataLenInBit + 4, hash);	//b. Hai = Hv(Z || ct)
-  
-          if (i == maxLoopNum - 1) //c. 根据keylen/32是除，截取摘要的值
-          &#123;			
-              if (keyLenInBit % 32 != 0)
-             &#123;
-                  realHashLen = keyLenInBit % 32;
-              &#125;
-          &#125;
-          memcpy(tmpRes + 32 * i, hash, realHashLen);	//d.次把结果连接上
-          //i++;
-          ct++;
-      &#125;
-  
-      if (result != NULL)
-      &#123;
-          memcpy(result, tmpRes, keyLenInBit);
-      &#125;
-      free(tmpRes);
-      free(tmpData);
-</code></pre>
 </li>
 </ol>
-<p>}</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">memcpy</span>(x2 + <span class="number">32</span>, y2, <span class="number">32</span>);<span class="comment">//x2 = x2 || y2</span></span><br><span class="line">KDF(t, x2, <span class="number">64</span> * <span class="number">8</span>, messageSizeInBit);	<span class="comment">//t = KDF(</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">KDF</span><span class="params">(<span class="type">uint8_t</span>* result, <span class="type">uint8_t</span>* Z, <span class="type">int</span> dataLenInBit, inkeyLenInBit)</span><span class="comment">//虽然此处可以修改，因为即使传进kdf的参数有改变，每次mems函数都重置了里面的值，但是没有必要，因为这样申请的空间太多了</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">uint8_t</span>* tmpRes = (<span class="type">uint8_t</span>*)<span class="built_in">malloc</span>(keyLenInBit / <span class="number">8</span>), </span><br><span class="line"> 		*tmpData = (<span class="type">uint8_t</span>*)<span class="built_in">malloc</span>(dataLenInBit / <span class="number">8</span> + <span class="number">4</span>);</span><br><span class="line">	keyLenInBit /= <span class="number">8</span>;</span><br><span class="line">	dataLenInBit /= <span class="number">8</span>;<span class="comment">//转为byte数</span></span><br><span class="line">	<span class="built_in">memset</span>(tmpRes, <span class="number">0</span>, keyLenInBit);</span><br><span class="line">	<span class="built_in">memset</span>(tmpData, <span class="number">0</span>, dataLenInBit + <span class="number">4</span>);</span><br><span class="line"></span><br><span class="line">	<span class="type">uint32_t</span> ct = <span class="number">1</span>;  <span class="comment">//a.初始化32bit计数器</span></span><br><span class="line">	<span class="type">uint8_t</span> hash[<span class="number">32</span>] = &#123; <span class="number">0</span> &#125;, ct2Byte[<span class="number">4</span>] = &#123; <span class="number">0</span> &#125;; <span class="comment">//ct2By与计数值一样,只是为了方便计算</span></span><br><span class="line">	<span class="type">int</span> realHashLen = <span class="number">32</span>; <span class="comment">//摘要长度</span></span><br><span class="line">	<span class="type">int</span> maxLoopNum = (keyLenInBit + <span class="number">31</span>) / <span class="number">32</span>; <span class="comment">//times [klenInBit/(向上取整)</span></span><br><span class="line">	<span class="type">int</span> i = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">	<span class="built_in">memcpy</span>(tmpData, Z, dataLenInBit);</span><br><span class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; maxLoopNum; i++)</span><br><span class="line">	&#123;</span><br><span class="line">		ct2Byte[<span class="number">0</span>] = (ct &gt;&gt; <span class="number">24</span>) &amp; <span class="number">0xFF</span>;</span><br><span class="line">		ct2Byte[<span class="number">1</span>] = (ct &gt;&gt; <span class="number">16</span>) &amp; <span class="number">0xFF</span>;</span><br><span class="line">		ct2Byte[<span class="number">2</span>] = (ct &gt;&gt; <span class="number">8</span>) &amp; <span class="number">0xFF</span>;</span><br><span class="line">		ct2Byte[<span class="number">3</span>] = (ct) &amp; <span class="number">0xFF</span>;<span class="comment">//当byte要转化为int的时候，高的2必然会补1，这样，其二进制补码其实已经不一致了，&amp;0xff可以将24位置为0，低8位保持原样。这样做的目的就是为了保证二进制数一致性。</span></span><br><span class="line">		<span class="built_in">memcpy</span>(tmpData + dataLenInBit, ct2Byte, <span class="number">4</span>);	<span class="comment">// Z |ct</span></span><br><span class="line">		SM3(tmpData, dataLenInBit + <span class="number">4</span>, hash);	<span class="comment">//b. Hai = Hv(Z |ct)</span></span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> (i == maxLoopNum - <span class="number">1</span>) <span class="comment">//c. 根据keylen/32是除，截取摘要的值</span></span><br><span class="line">		&#123;			</span><br><span class="line">    		<span class="keyword">if</span> (keyLenInBit % <span class="number">32</span> != <span class="number">0</span>)</span><br><span class="line">   		&#123;</span><br><span class="line">    			realHashLen = keyLenInBit % <span class="number">32</span>;</span><br><span class="line">    		&#125;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="built_in">memcpy</span>(tmpRes + <span class="number">32</span> * i, hash, realHashLen);	<span class="comment">//d.次把结果上</span></span><br><span class="line">		<span class="comment">//i++;</span></span><br><span class="line">		ct++;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (result != <span class="literal">NULL</span>)</span><br><span class="line">	&#123;</span><br><span class="line">		<span class="built_in">memcpy</span>(result, tmpRes, keyLenInBit);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">free</span>(tmpRes);</span><br><span class="line">	<span class="built_in">free</span>(tmpData);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ol start="7">
+<li><p>   计算C2&#x3D;M  ⊕ t；</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">CalculateC2</span><span class="params">(<span class="type">uint8_t</span>* result, <span class="type">char</span>* M, <span class="type">uint8_t</span>* t, <span class="type">int</span> lenInByte)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; lenInByte; i++)</span><br><span class="line">    &#123;</span><br><span class="line">        result[i] = M[i] ^ t[i];</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>   计算C3 &#x3D; Hash(x2 ∥ M ∥ y2)；</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">SM3</span><span class="params">(<span class="type">char</span>* cdata, <span class="type">int</span> sizeInByte, <span class="type">char</span>* res)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">lk_sm3_context_t</span> context;</span><br><span class="line">    LK_INIT_VALUE(&amp;context);</span><br><span class="line">    <span class="type">char</span> buffer[<span class="number">1024</span>] = &#123; <span class="number">0</span> &#125;;</span><br><span class="line"></span><br><span class="line">    lk_sm3_update(&amp;context, cdata, sizeInByte);</span><br><span class="line">    lk_sm3_final(&amp;context);</span><br><span class="line">    <span class="keyword">for</span> (<span class="type">int</span> i = <span class="number">0</span>; i &lt; <span class="number">32</span>; i++)</span><br><span class="line">        res[i] = context.output[i];</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>   输出密文C&#x3D;C1||C2||C3</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">memcpy</span>(C, C1, <span class="number">65</span>);</span><br><span class="line"><span class="built_in">memcpy</span>(C + <span class="number">65</span>, C2, messageSizeInBit / <span class="number">8</span>);</span><br><span class="line"><span class="built_in">memcpy</span>(C + <span class="number">65</span> + messageSizeInBit / <span class="number">8</span>, C3, <span class="number">32</span>);	<span class="comment">//C = C1 || C2 || C3</span></span><br><span class="line"><span class="keyword">return</span> C;</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="算力消耗"><a href="#算力消耗" class="headerlink" title="算力消耗"></a>算力消耗</h3><p>整个加密过程中，<strong>kdf密钥派生过程</strong>需要消耗很多算力，目的是防止暴力破解加密。</p>
+<p>如果要加速运算，可以从这方面考虑。</p>
 
       
     </div>
