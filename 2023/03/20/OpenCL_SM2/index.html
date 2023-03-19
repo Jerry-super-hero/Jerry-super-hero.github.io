@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="此为本人毕业设计题目的一部分，仅供参考。 第一章，浅opencl化sm2  由于目前本人opencl学的不行，sm2算法里面复杂的部分并行性提取不出来，俗话说的好，先易后难，我先从最简单的部分来将sm2算法opencl化。 在sm2解密过程中，计算的最后一步是：C2&#x3D;M  ⊕ t； 我看这一步其实和一般的向量相加差不多，可以说是最简单的并行，而且并行度奇高，就打算从这里下手 在原代码中新">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于OpenCL的SM2加密算法实现">
+<meta property="og:url" content="http://example.com/2023/03/20/OpenCL_SM2/index.html">
+<meta property="og:site_name" content="学习阶梯">
+<meta property="og:description" content="此为本人毕业设计题目的一部分，仅供参考。 第一章，浅opencl化sm2  由于目前本人opencl学的不行，sm2算法里面复杂的部分并行性提取不出来，俗话说的好，先易后难，我先从最简单的部分来将sm2算法opencl化。 在sm2解密过程中，计算的最后一步是：C2&#x3D;M  ⊕ t； 我看这一步其实和一般的向量相加差不多，可以说是最简单的并行，而且并行度奇高，就打算从这里下手 在原代码中新">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-03-19T17:07:53.654Z">
+<meta property="article:modified_time" content="2023-03-19T17:35:01.362Z">
+<meta property="article:author" content="csdby">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2023/03/20/OpenCL_SM2/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>基于OpenCL的SM2加密算法实现 | 学习阶梯</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">学习阶梯</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/03/20/OpenCL_SM2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="csdby">
+      <meta itemprop="description" content="天道酬勤">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="学习阶梯">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          基于OpenCL的SM2加密算法实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-03-20 01:07:53 / 修改时间：01:35:01" itemprop="dateCreated datePublished" datetime="2023-03-20T01:07:53+08:00">2023-03-20</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>此为本人毕业设计题目的一部分，仅供参考。</p>
+<h2 id="第一章，浅opencl化sm2"><a href="#第一章，浅opencl化sm2" class="headerlink" title="第一章，浅opencl化sm2"></a>第一章，浅opencl化sm2</h2><br/>
+
+<p>由于目前本人opencl学的不行，sm2算法里面复杂的部分并行性提取不出来，俗话说的好，先易后难，我先从最简单的部分来将sm2算法opencl化。</p>
+<p>在sm2解密过程中，计算的最后一步是：C2&#x3D;M  ⊕ t；</p>
+<p>我看这一步其实和一般的向量相加差不多，可以说是最简单的并行，而且并行度奇高，就打算从这里下手</p>
+<p>在原代码中新建头文件OPENCL.h，这样便于之后的维护。<br>再新建一个实现文件OPENCL.c代码如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;SM2.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;CL/cl.h&gt;</span></span></span><br><span class="line"><span class="comment">//#include &quot;OpenCL.h&quot;</span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;OPENCL.h&quot;</span> </span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> <span class="keyword">warning</span>( disable : 4996 )</span></span><br><span class="line"></span><br><span class="line"><span class="type">const</span> <span class="type">char</span>* programSource =</span><br><span class="line"><span class="string">&quot;__kernel                                               \n&quot;</span></span><br><span class="line"><span class="string">&quot;void vecadd(__global uint8 *A,                         \n&quot;</span></span><br><span class="line"><span class="string">&quot;            __global uint8 *B,                         \n&quot;</span></span><br><span class="line"><span class="string">&quot;            __global uint8 *C)                         \n&quot;</span></span><br><span class="line"><span class="string">&quot;&#123;                                                      \n&quot;</span></span><br><span class="line"><span class="string">&quot;                                                       \n&quot;</span></span><br><span class="line"><span class="string">&quot;// Get the work=item&#x27;s unique 10                       \n&quot;</span></span><br><span class="line"><span class="string">&quot;                                                       \n&quot;</span></span><br><span class="line"><span class="string">&quot;int idx=get_global_id(0);                              \n&quot;</span></span><br><span class="line"><span class="string">&quot;                                                       \n&quot;</span></span><br><span class="line"><span class="string">&quot;// Add the corresponding locations of                  \n&quot;</span></span><br><span class="line"><span class="string">&quot;// &#x27;A&#x27; and &#x27;B&#x27;. and store the result in &#x27;C&#x27;.           \n&quot;</span></span><br><span class="line"><span class="string">&quot;C[idx] = A[idx] ^ B[idx];                              \n&quot;</span></span><br><span class="line"><span class="string">&quot;                                                       \n&quot;</span></span><br><span class="line"><span class="string">&quot;&#125;                                                      \n&quot;</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">;void CalculateMessage_OPENCL(uint8_t* result, uint8_t* C2, uint8_t* t, int lenInByte)</span></span><br><span class="line"><span class="comment">&#123;</span></span><br><span class="line"><span class="comment">    for (int i = 0; i &lt; lenInByte; i++)</span></span><br><span class="line"><span class="comment">    &#123;</span></span><br><span class="line"><span class="comment">        result[i] = C2[i] ^ t[i];</span></span><br><span class="line"><span class="comment">    &#125;</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">CalculateMessage_OPENCL</span><span class="params">(<span class="type">uint8_t</span>* result, <span class="type">uint8_t</span>* C2, <span class="type">uint8_t</span>* t, <span class="type">int</span> lenInByte)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// This code executes on the OperCL host</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Host data主机输入输出向量</span></span><br><span class="line">    <span class="type">uint8_t</span>* A =C2; <span class="comment">// Input array</span></span><br><span class="line">    <span class="type">uint8_t</span>* B =t; <span class="comment">// Input array</span></span><br><span class="line">    <span class="type">uint8_t</span>* C =result; <span class="comment">// Output array</span></span><br><span class="line">    </span><br><span class="line">    <span class="comment">//printf(&quot;%s\n\n%s\n\n&quot;, A, C2);验证成功，C2和t已经导入进了输入向量</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Elements in each array定义元素个数（向量长度）</span></span><br><span class="line">    <span class="type">const</span> <span class="type">int</span> elements = lenInByte;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Compute the sizeof the data计算数据长度</span></span><br><span class="line">    <span class="type">size_t</span> datasize = <span class="keyword">sizeof</span>(<span class="type">uint8_t</span>) * elements;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Allocate space for input/output data分配对应内存空间</span></span><br><span class="line">    <span class="comment">//A = (uint8_t*)malloc(datasize);</span></span><br><span class="line">    <span class="comment">//B = (uint8_t*)malloc(datasize);</span></span><br><span class="line">    <span class="comment">//C = (uint8_t*)malloc(datasize);</span></span><br><span class="line">    <span class="comment">// Initialize the input data初始化输入数据</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    for (int i = 0; i &lt; elements; i++) &#123;</span></span><br><span class="line"><span class="comment">        A[i] = C2[i];</span></span><br><span class="line"><span class="comment">        B[i] = t[i];</span></span><br><span class="line"><span class="comment">    &#125;</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="comment">//printf(&quot;%s\n\n%s\n\n&quot;, A, C2);</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use this to check the output of eachAPI call</span></span><br><span class="line">    cl_int status;<span class="comment">//定义状态码</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//----------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 1; Discover and initialize the platforms发现初始化平台</span></span><br><span class="line">    <span class="comment">//----------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    cl_uint numPlatforms = <span class="number">0</span>;<span class="comment">//定义平台数</span></span><br><span class="line">    cl_platform_id* platforms = <span class="literal">NULL</span>;<span class="comment">//初始化平台id</span></span><br><span class="line">    <span class="comment">// Use cLGetPlatformIDs( ) to retrieve the number of</span></span><br><span class="line">    <span class="comment">// platforms</span></span><br><span class="line">    status = clGetPlatformIDs(<span class="number">0</span>, <span class="literal">NULL</span>, &amp;numPlatforms);<span class="comment">//状态码绑定计算平台，获取可用平台数</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Allocate erough space for each platform</span></span><br><span class="line">    platforms = (cl_platform_id*)<span class="built_in">malloc</span>(numPlatforms * <span class="keyword">sizeof</span>(cl_platform_id));<span class="comment">//分配平台空间</span></span><br><span class="line">    <span class="comment">// Fill in platforms with clGetplatformIDs()</span></span><br><span class="line">    status = clGetPlatformIDs(numPlatforms, platforms, <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//----------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 2; Discover and initialize the devices发现初始化设备</span></span><br><span class="line">    <span class="comment">//----------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    cl_uint numDevices = <span class="number">0</span>;</span><br><span class="line">    cl_device_id* devices = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="comment">// use c1GetleviceIDs() to retrieve the number of</span></span><br><span class="line">    <span class="comment">// devices present</span></span><br><span class="line">    status = clGetDeviceIDs(<span class="comment">//状态码绑定设备，获取可用计算设备</span></span><br><span class="line">        platforms[<span class="number">0</span>],</span><br><span class="line">        CL_DEVICE_TYPE_ALL,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        &amp;numDevices);</span><br><span class="line">    <span class="comment">// Allocate enough space for each device</span></span><br><span class="line">    devices = (cl_device_id*)<span class="built_in">malloc</span>(numDevices * <span class="keyword">sizeof</span>(cl_device_id));<span class="comment">//分配设备空间</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Fill in devices with clGetDeviceIDs()</span></span><br><span class="line">    status = clGetDeviceIDs(</span><br><span class="line">        platforms[<span class="number">0</span>],</span><br><span class="line">        CL_DEVICE_TYPE_ALL,</span><br><span class="line">        numDevices,</span><br><span class="line">        devices,</span><br><span class="line">        <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//-------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 3; Create a context创造上下文</span></span><br><span class="line">    <span class="comment">//-------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    cl_context context = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Create a context using clCreateContext() ard</span></span><br><span class="line">    <span class="comment">// associate it with the devices上下文连接设备</span></span><br><span class="line">    context = clCreateContext(</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        numDevices,</span><br><span class="line">        devices,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//-------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 4; Create a command queue创造命令队列</span></span><br><span class="line">    <span class="comment">//-------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    cl_command_queue cmdQueue;</span><br><span class="line">    <span class="comment">// Create a command queue using clCreateCommandQueue(),</span></span><br><span class="line">    <span class="comment">// and associate it with the device you want to execute</span></span><br><span class="line">    <span class="comment">// on命令队列连接到执行的设备和上下文</span></span><br><span class="line">    cmdQueue = clCreateCommandQueue(</span><br><span class="line">        context,</span><br><span class="line">        devices[<span class="number">0</span>],</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//--------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 5; Create device buffers创建buffer对象</span></span><br><span class="line">    <span class="comment">//--------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//定义输入输出buffer</span></span><br><span class="line">    cl_mem bufferA; <span class="comment">// Input array on the device</span></span><br><span class="line">    cl_mem bufferB; <span class="comment">// Input array on the device</span></span><br><span class="line">    cl_mem bufferC; <span class="comment">// Output array on the device</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clCreateBuffer() to create a buffer object (c_A)</span></span><br><span class="line">    <span class="comment">// that will contain the data from the host array A</span></span><br><span class="line">    <span class="comment">//创建存储输入数据A的只读buffer</span></span><br><span class="line">    bufferA = clCreateBuffer(</span><br><span class="line">        context,</span><br><span class="line">        CL_MEM_READ_ONLY,</span><br><span class="line">        datasize,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clCreateBuffer() to create a buffer object (C_B)</span></span><br><span class="line">    <span class="comment">// that will contain the data from the host array B</span></span><br><span class="line">    <span class="comment">//创建存储输入数据B的只读buffer</span></span><br><span class="line">    bufferB = clCreateBuffer(</span><br><span class="line">        context,</span><br><span class="line">        CL_MEM_READ_ONLY,</span><br><span class="line">        datasize,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clCreateBuffer() to create a bufter object (C_C)</span></span><br><span class="line">    <span class="comment">// with enough space to hold the output data</span></span><br><span class="line">    <span class="comment">//创建存储输出数据C的写入buffer</span></span><br><span class="line">    bufferC = clCreateBuffer(</span><br><span class="line">        context,</span><br><span class="line">        CL_MEM_WRITE_ONLY,</span><br><span class="line">        datasize,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//--------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 6; Write host data to device buffers主机数据写入设备buffer</span></span><br><span class="line">    <span class="comment">//-------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clEnqueueWriteBuffer() to write input array A to</span></span><br><span class="line">    <span class="comment">// the device buffer bufferA//将主机内存写入缓冲区</span></span><br><span class="line">    status = clEnqueueWriteBuffer(</span><br><span class="line">        cmdQueue,</span><br><span class="line">        bufferA,</span><br><span class="line">        CL_FALSE,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        datasize,</span><br><span class="line">        A,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clEnqueueWriteBuffer() to write input array B to</span></span><br><span class="line">    <span class="comment">// the device buffer bufferB//将主机内存写入缓冲区</span></span><br><span class="line">    status = clEnqueueWriteBuffer(</span><br><span class="line">        cmdQueue,</span><br><span class="line">        bufferB,</span><br><span class="line">        CL_FALSE,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        datasize,</span><br><span class="line">        B,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">/*-------------------------------------------------- -</span></span><br><span class="line"><span class="comment">    status = clEnqueueWriteBuffer(</span></span><br><span class="line"><span class="comment">        cmdQueue,</span></span><br><span class="line"><span class="comment">        bufferA,</span></span><br><span class="line"><span class="comment">        CL_TRUE,</span></span><br><span class="line"><span class="comment">        0,</span></span><br><span class="line"><span class="comment">        datasize,</span></span><br><span class="line"><span class="comment">        C,</span></span><br><span class="line"><span class="comment">        0,</span></span><br><span class="line"><span class="comment">        NULL,</span></span><br><span class="line"><span class="comment">        NULL);</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">    */</span><span class="comment">//----------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//------------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 7; Create ard compile the program </span></span><br><span class="line">    <span class="comment">//------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Create a program using clCreateProgramWithSource()把之前的kernel编进来创建成程序</span></span><br><span class="line">    cl_program program = clCreateProgramWithSource(</span><br><span class="line">        context,</span><br><span class="line">        <span class="number">1</span>,</span><br><span class="line">        (<span class="type">const</span> <span class="type">char</span>**)&amp;programSource,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Build (compile) the program for the devices with</span></span><br><span class="line">    <span class="comment">// clBuildProgram( )构建可执行文件</span></span><br><span class="line">    status = clBuildProgram(</span><br><span class="line">        program,</span><br><span class="line">        numDevices,</span><br><span class="line">        devices,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>);</span><br><span class="line">  </span><br><span class="line">    <span class="keyword">if</span> (status != CL_SUCCESS)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="type">size_t</span> len;</span><br><span class="line">        <span class="type">char</span> buffer[<span class="number">8</span> * <span class="number">1024</span>];</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Error: Failed to build program executable!\n&quot;</span>);</span><br><span class="line">        clGetProgramBuildInfo(program, devices[<span class="number">0</span>], CL_PROGRAM_BUILD_LOG, <span class="keyword">sizeof</span>(buffer), buffer, &amp;len);</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>, buffer);</span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//---------------------------------------</span></span><br><span class="line">    <span class="comment">// STEP 8; Create the kernel</span></span><br><span class="line">    <span class="comment">//---------------------------------------</span></span><br><span class="line"></span><br><span class="line">    cl_kernel kernel = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clCreateKernel() to create a kernel from the</span></span><br><span class="line">    <span class="comment">// vector addition function (named &quot;vecadd”)</span></span><br><span class="line">    kernel = clCreateKernel(program, <span class="string">&quot;vecadd&quot;</span>, &amp;status);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//----------------------------------------</span></span><br><span class="line">    <span class="comment">// STEP 9; Set the kernel arguments</span></span><br><span class="line">    <span class="comment">//----------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Associate the input ard output buffers with the</span></span><br><span class="line">    <span class="comment">// kernel</span></span><br><span class="line">    <span class="comment">// using clSetKernelArg( )为内核设定参数</span></span><br><span class="line">    status = clSetKernelArg(</span><br><span class="line">        kernel,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        <span class="keyword">sizeof</span>(cl_mem),</span><br><span class="line">        &amp;bufferA);</span><br><span class="line">    status |= clSetKernelArg(</span><br><span class="line">        kernel,</span><br><span class="line">        <span class="number">1</span>,</span><br><span class="line">        <span class="keyword">sizeof</span>(cl_mem),</span><br><span class="line">        &amp;bufferB);</span><br><span class="line">    status |= clSetKernelArg(</span><br><span class="line">        kernel,</span><br><span class="line">        <span class="number">2</span>,</span><br><span class="line">        <span class="keyword">sizeof</span>(cl_mem),</span><br><span class="line">        &amp;bufferC);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//-------------------------------------------------</span></span><br><span class="line">    <span class="comment">// STEP 10; Configure the work-item structure</span></span><br><span class="line">    <span class="comment">//-------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Define an index space (global work size) of work</span></span><br><span class="line">    <span class="comment">// items for</span></span><br><span class="line">    <span class="comment">// execution. A workgroup size (loca1 work size) is not</span></span><br><span class="line">    <span class="comment">// required.</span></span><br><span class="line">    <span class="comment">// but can be used.</span></span><br><span class="line">    <span class="type">size_t</span> globalWorkSize[<span class="number">1</span>];</span><br><span class="line">    <span class="comment">// There are &#x27;elements&quot; work-items</span></span><br><span class="line">    globalWorkSize[<span class="number">0</span>] = elements;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//------------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 11; Enqueue the kernel for execution</span></span><br><span class="line">    <span class="comment">//------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Execute the kernel by using</span></span><br><span class="line">    <span class="comment">// clEnqueueNDRangeKernel().</span></span><br><span class="line">    <span class="comment">// &#x27;globalWorkSize&quot; is the ID dimension of the</span></span><br><span class="line">    <span class="comment">// work-items</span></span><br><span class="line">    status = clEnqueueNDRangeKernel(<span class="comment">//在整个数据范围内执行内核</span></span><br><span class="line">        cmdQueue,</span><br><span class="line">        kernel,</span><br><span class="line">        <span class="number">1</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        globalWorkSize,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//-----------------------------------------------------</span></span><br><span class="line">    <span class="comment">// SIEP 12; Read the output buffer back to the host</span></span><br><span class="line">    <span class="comment">//-----------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// Use clEnqueueReadBuffer() to read the openCL output</span></span><br><span class="line">    <span class="comment">// buffer (bufferC)</span></span><br><span class="line">    <span class="comment">// to the host output array (C)//把bufferC里的读入C</span></span><br><span class="line">    clEnqueueReadBuffer(</span><br><span class="line">        cmdQueue,</span><br><span class="line">        bufferC,</span><br><span class="line">        CL_TRUE,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        datasize,</span><br><span class="line">        C,</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        <span class="literal">NULL</span>,</span><br><span class="line">        <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Verify the output</span></span><br><span class="line">    <span class="comment">/*</span></span><br><span class="line"><span class="comment">    bool result = true;</span></span><br><span class="line"><span class="comment">    for (int i = 0; i &lt; elements; i++) &#123;</span></span><br><span class="line"><span class="comment">        if (C[i] != i + i) &#123;</span></span><br><span class="line"><span class="comment">            result = false;</span></span><br><span class="line"><span class="comment">            break;</span></span><br><span class="line"><span class="comment">        &#125;</span></span><br><span class="line"><span class="comment">    &#125;</span></span><br><span class="line"><span class="comment">    if (result) &#123;</span></span><br><span class="line"><span class="comment">        printf(&quot;Output is correct\n&quot;);</span></span><br><span class="line"><span class="comment">    &#125;</span></span><br><span class="line"><span class="comment">    else &#123;</span></span><br><span class="line"><span class="comment">        printf(&quot;Output is incorrect\n&quot;);</span></span><br><span class="line"><span class="comment">    &#125;</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">    <span class="comment">//--------------------------------------------</span></span><br><span class="line">    <span class="comment">// STEP 13; Release OpenCL resources//释放资源</span></span><br><span class="line">    <span class="comment">//--------------------------------------------</span></span><br><span class="line">    <span class="comment">//printf(&quot;%s\n&quot;, C);</span></span><br><span class="line">    <span class="comment">// free OperCL resources</span></span><br><span class="line">    clReleaseKernel(kernel);</span><br><span class="line">    clReleaseProgram(program);</span><br><span class="line">    clReleaseCommandQueue(cmdQueue);</span><br><span class="line">    clReleaseMemObject(bufferA);</span><br><span class="line">    clReleaseMemObject(bufferB);</span><br><span class="line">    clReleaseMemObject(bufferC);</span><br><span class="line">    clReleaseContext(context);</span><br><span class="line">    <span class="comment">// Free host resources</span></span><br><span class="line">    <span class="comment">//free(A);</span></span><br><span class="line">    <span class="comment">//free(B);</span></span><br><span class="line">    <span class="comment">//free(C);</span></span><br><span class="line">    <span class="built_in">free</span>(platforms);</span><br><span class="line">    <span class="built_in">free</span>(devices);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>怎么说呢，是个战痕累累的代码，就是以书上的向量相加代码为基础改的，这里我只挑修改过程中关键的几点讲一下</p>
+<ol>
+<li>在建立kernel的过程中，数据类型很关键，有些定义方法和平时写c语言的时候不同，这里要注意，因为写的时候kernel里的是没有报错提示的，一定要小心。</li>
+<li>clBuildProgram()函数的报错代码非常关键，没有这个遇到报错你还是一脸懵。</li>
+<li>在初始化传入传出值的时候，数据类型一定要一致，数据类型一定要一致，数据类型一定要一致，不然就疯狂报错。</li>
+<li>最后，释放资源这一块，注意有些内存是函数的返回值，free不free自己斟酌。</li>
+</ol>
+<p>具体查看新章节[OpenCL编译环境配置及常见问题]</p>
+<p>这里补充点感觉好的：整个修改过程中，你只要改kernel和一开始的初始化就够了，这一点非常让人省心。</p>
+<p><br/><br/><br/><br/></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/18/OpenCL%E7%BC%96%E8%AF%91/" rel="prev" title="OpenCL编译环境配置及常见问题">
+      <i class="fa fa-chevron-left"></i> OpenCL编译环境配置及常见问题
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AC%AC%E4%B8%80%E7%AB%A0%EF%BC%8C%E6%B5%85opencl%E5%8C%96sm2"><span class="nav-number">1.</span> <span class="nav-text">第一章，浅opencl化sm2</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">csdby</p>
+  <div class="site-description" itemprop="description">天道酬勤</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">csdby</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
